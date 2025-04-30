@@ -15,7 +15,8 @@ class GoalLightGUI:
         self.game={}
         self.gameNum = 0
         self.allGames = []
-
+        self.buttons = []
+        
         # Load the first game as default
         self.getGames()
         self.runLoop = True
@@ -28,6 +29,14 @@ class GoalLightGUI:
         self.touch = ft6336u.ft6336u()
         self.width = 480
         self.height = 320
+
+        #Width, Height, X, Y, Margin, SRC, Screen Size
+        self.prevGameButton = self.Button(24, 42, 50, 250, 10, "PrevGameButton.png", (self.width, self.height))
+        self.registerButton(self.prevGameButton, self.handlePrevGame)
+        self.nextGameButton = self.Button(24, 42, 380, 250, 10, "NextGameButton.png", (self.width, self.height))
+        self.registerButton(self.nextGameButton, self.handleNextGame)
+        self.closeScreenButton = self.Button(40,40, 430, 10, 0, "CloseScreen.png", (self.width, self.height))
+        self.registerButton(self.closeScreenButton, self.killProgram)
 
         # GUI Params
         self.logoSize = (100,100)
@@ -65,7 +74,7 @@ class GoalLightGUI:
         backgroundTextDraw = ImageDraw.Draw(background)
         textColor = self.whiteCOLOR
         font = ImageFont.truetype(f"./static/{self.font}.ttf", 48)
-        if self.game["gameState"] == "PRE":
+        if self.game["gameState"] == "PRE" or self.game["gameState"] == "FUT":
             awayScore = "-"
             homeScore = "-"
         else:
@@ -75,11 +84,13 @@ class GoalLightGUI:
         backgroundTextDraw.text((self.width-(self.sideMargin*2+self.logoSize[0])-self.phaseConstant, 120), homeScore, fill=textColor, font=font)
 
         # Create the chevrons to switch games
-        chevron = Image.open("./static/chevron.png")
-        chevronResized = chevron.resize(self.chevronSize)
-        background.paste(chevronResized,(self.width-self.chevronSize[0]-self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronResized)
-        chevronFlipped = chevronResized.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        background.paste(chevronFlipped,(self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronFlipped)
+        # chevron = Image.open("./static/chevron.png")
+        # chevronResized = chevron.resize(self.chevronSize)
+        # background.paste(chevronResized,(self.width-self.chevronSize[0]-self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronResized)
+        # chevronFlipped = chevronResized.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        # background.paste(chevronFlipped,(self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronFlipped)
+        for button in self.buttons:
+            background = button[0].drawButton(background)
         if self.game["gameState"] == "OFF" or self.game["gameState"] == "FINAL":
             finalScore = Image.open("./static/FinalScore.png")
             background.paste(finalScore, (int((self.width-finalScore.width)/2), 35), mask=finalScore)
@@ -90,6 +101,9 @@ class GoalLightGUI:
         # Switch display
         self.display.show_image(flippedBackground)
         
+    def registerButton(self, button, callback):
+        self.buttons.append([button, callback])
+    
     def getGames(self):
         print("making request to NHL API")
         gamesNow = requests.get(f"https://api-web.nhle.com/v1/score/now")
@@ -108,7 +122,7 @@ class GoalLightGUI:
             self.game = self.allGames[number]
 
     def evalChange(self, newGameData):
-        if self.game["gameState"] != "PRE":
+        if self.game["gameState"] != "PRE" and self.game["gameState"] != "FUT":
             oldAwayScore = self.game["awayTeam"]["score"]
             oldHomeScore = self.game["homeTeam"]["score"]
             newAwayScore = newGameData["awayTeam"]["score"]
@@ -123,12 +137,17 @@ class GoalLightGUI:
     def handleTouch(self, coordinates):
         # The "y" measures from the right of the screen to the left
         # The "x" measures from the bottom of the screen to the top
-        if self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin >= coordinates[0]["y"] >= self.chevronMargin[0]-self.touchMargin and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[1]-self.touchMargin:
-            self.handleNextGame()
-        elif self.width-(self.chevronMargin[0]-self.touchMargin) >= coordinates[0]["y"] >= self.width-(self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin) and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[0]-self.touchMargin:
-            self.handlePrevGame()
-        elif 50 >= coordinates[0]["y"] and self.height >= coordinates[0]["x"] >= self.height-50:
-            self.killProgram()
+        xCoord = coordinates[0]["y"]
+        yCoord = coordinates[0]["x"]
+        for button, callback in self.buttons:
+            if button.screenSize[0] - button.x + button.margin >= xCoord >= button.screenSize[0]-button.x-button.width-button.margin and button.screenSize[1] - button.y + button.margin >= yCoord >= button.screenSize[1]-button.y-button.height-button.margin:
+                callback()
+        # if self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin >= coordinates[0]["y"] >= self.chevronMargin[0]-self.touchMargin and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[1]-self.touchMargin:
+        #     self.handleNextGame()
+        # elif self.width-(self.chevronMargin[0]-self.touchMargin) >= coordinates[0]["y"] >= self.width-(self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin) and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[0]-self.touchMargin:
+        #     self.handlePrevGame()
+        # elif 50 >= coordinates[0]["y"] and self.height >= coordinates[0]["x"] >= self.height-50:
+        #     self.killProgram()
     
     def handlePrevGame(self):
         if(self.gameNum != 0):
@@ -164,6 +183,22 @@ class GoalLightGUI:
                 self.getGames()
                 timeVar = 0
             time.sleep(self.refreshInterval)
+    class Button:
+        def __init__(self, width, height, x, y, margin, src, screenSize):
+            #From screen left
+            self.x = x
+            #From screen top
+            self.y = y
+            self.margin = margin
+            self.src = src
+            self.width = width
+            self.height = height
+            self.screenSize = screenSize
+        def drawButton(self, img:Image):
+            buttonImage = Image.open(f"./static/{self.src}")
+            buttonImageResized = buttonImage.resize((self.width, self.height))
+            img.paste(buttonImageResized,(self.x, self.y), mask=buttonImageResized)
+            return img
 
 if __name__=="__main__":
     gui = GoalLightGUI()
