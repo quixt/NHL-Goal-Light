@@ -4,14 +4,45 @@ import drivers.ft6336u as ft6336u
 from PIL import Image,ImageDraw,ImageFont
 import requests
 from subprocess import call
-from datetime import datetime
+from datetime import datetime, timezone
+
+welcome = """
+****************************************
+NHL GOAL LIGHT
+
+Created and programmed by Joseph (quixt)
+
+Useable under MIT License
+****************************************
+"""
+
+print(welcome)
+print("System Timezone: ", time.tzname)
+def utc_to_local(utc:datetime):
+    if utc.tzinfo is None:
+        # Assume input is UTC but naive, convert it to aware
+        utc = utc.replace(tzinfo=timezone.utc)
+    local_time = utc.astimezone()
+    return local_time
+
+def clean_datetime_str(hour, minute):
+    if hour > 12:
+        hour-=12
+        pmAm = "PM"
+    else:
+        pmAm = "AM"
+    if minute == 0:
+        minuteString = "00"
+    else:
+        minuteString = str(minute)
+    timeString = f"{hour}:{minuteString} {pmAm}"
+    return timeString
+    
 
 class GoalLightGUI:
     def __init__(self):
         # Used to get the date for the request
         # Deprecated for now
-        self.date = datetime.today().strftime('%Y-%m-%d')
-        print(self.date)
         self.game={}
         self.gameNum = 0
         self.allGames = []
@@ -33,9 +64,9 @@ class GoalLightGUI:
         #Width, Height, X, Y, Margin, SRC, Screen Size
         self.prevGameButton = self.Button(24, 42, 50, 250, 10, "PrevGameButton.png", (self.width, self.height))
         self.registerButton(self.prevGameButton, self.handlePrevGame)
-        self.nextGameButton = self.Button(24, 42, 380, 250, 10, "NextGameButton.png", (self.width, self.height))
+        self.nextGameButton = self.Button(24, 42, 406, 250, 10, "NextGameButton.png", (self.width, self.height))
         self.registerButton(self.nextGameButton, self.handleNextGame)
-        self.closeScreenButton = self.Button(40,40, 430, 10, 0, "CloseScreen.png", (self.width, self.height))
+        self.closeScreenButton = self.Button(25,25, 445, 10, 0, "CloseScreen.png", (self.width, self.height))
         self.registerButton(self.closeScreenButton, self.killProgram)
 
         # GUI Params
@@ -77,24 +108,33 @@ class GoalLightGUI:
         if self.game["gameState"] == "PRE" or self.game["gameState"] == "FUT":
             awayScore = "-"
             homeScore = "-"
+            startTimeUTC = str(self.game["startTimeUTC"])
+            startTimeUTC = startTimeUTC.replace("T"," ").replace("Z","")
+            utc = datetime.strptime(startTimeUTC, '%Y-%m-%d %H:%M:%S')
+            utc = utc.replace(tzinfo=timezone.utc)
+            newTime = utc_to_local(utc)
+            timeFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
+            backgroundTextDraw.text((20,20), clean_datetime_str(newTime.hour,newTime.minute), textColor, font=timeFont)
+
         else:
             awayScore = str(self.game["awayTeam"]["score"])
             homeScore = str(self.game["homeTeam"]["score"])
         backgroundTextDraw.text((self.sideMargin*2+self.logoSize[0], 120), awayScore, textColor, font=font)
         backgroundTextDraw.text((self.width-(self.sideMargin*2+self.logoSize[0])-self.phaseConstant, 120), homeScore, fill=textColor, font=font)
 
-        # Create the chevrons to switch games
-        # chevron = Image.open("./static/chevron.png")
-        # chevronResized = chevron.resize(self.chevronSize)
-        # background.paste(chevronResized,(self.width-self.chevronSize[0]-self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronResized)
-        # chevronFlipped = chevronResized.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        # background.paste(chevronFlipped,(self.chevronMargin[0],self.height-self.chevronMargin[1]-self.chevronSize[1]),mask=chevronFlipped)
+        periodFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
+
         for button in self.buttons:
             background = button[0].drawButton(background)
         if self.game["gameState"] == "OFF" or self.game["gameState"] == "FINAL":
-            finalScore = Image.open("./static/FinalScore.png")
-            background.paste(finalScore, (int((self.width-finalScore.width)/2), 35), mask=finalScore)
-
+            backgroundTextDraw.text((20,20),f"FINAL: {self.game['gameOutcome']['lastPeriodType']}",textColor, font=periodFont)
+        elif "period" in self.game:
+            if self.game["clock"]["inIntermission"]:
+                backgroundTextDraw.text((20,20),f"Intermission {str(self.game['period'])}",textColor, font=periodFont)
+            elif self.game["periodDescriptor"]["periodType"] == "REG":
+                backgroundTextDraw.text((20,20),f"Period {str(self.game['periodDescriptor']['number'])}",textColor, font=periodFont)
+            elif self.game["periodDescriptor"]["periodType"] == "OT":
+                backgroundTextDraw.text((20,20),f"Overtime {str(self.game['periodDescriptor']['otPeriods'])}",textColor, font=periodFont)
         # Screen display is flipped-image must be flipped horizontally to display correctly
         flippedBackground = background.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
@@ -120,7 +160,20 @@ class GoalLightGUI:
             self.game = self.allGames[self.gameNum]
         else:
             self.game = self.allGames[number]
+    def stateChanged(self, newGameData):
+        if newGameData["gameState"] != self.game["gameState"]:
+            return True
+        elif "period" in newGameData and not "period" in newGameData:
+            return True
+        elif "period" in newGameData:
+            if newGameData["period"] != self.game["period"] or newGameData["clock"]["inIntermission"] != self.game["clock"]["inIntermission"]:
+                return True
+            else:
+                return False
+        else:
+            return False
 
+    
     def evalChange(self, newGameData):
         if self.game["gameState"] != "PRE" and self.game["gameState"] != "FUT":
             oldAwayScore = self.game["awayTeam"]["score"]
@@ -128,10 +181,14 @@ class GoalLightGUI:
             newAwayScore = newGameData["awayTeam"]["score"]
             newHomeScore = newGameData["homeTeam"]["score"]
             # If the score is different, update the game data and redraw the screen
-            if newAwayScore != oldAwayScore or newHomeScore != oldHomeScore or newGameData["gameState"] != self.game["gameState"]:
+            if newAwayScore != oldAwayScore or newHomeScore != oldHomeScore or self.stateChanged(newGameData):
                 self.game = newGameData
                 print("State Updated (Goal or game state change)")
                 self.drawScreen()
+        elif self.stateChanged(newGameData):
+            self.game = newGameData
+            print("Game State Changed")
+            self.drawScreen()
             
             
     def handleTouch(self, coordinates):
@@ -142,12 +199,6 @@ class GoalLightGUI:
         for button, callback in self.buttons:
             if button.screenSize[0] - button.x + button.margin >= xCoord >= button.screenSize[0]-button.x-button.width-button.margin and button.screenSize[1] - button.y + button.margin >= yCoord >= button.screenSize[1]-button.y-button.height-button.margin:
                 callback()
-        # if self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin >= coordinates[0]["y"] >= self.chevronMargin[0]-self.touchMargin and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[1]-self.touchMargin:
-        #     self.handleNextGame()
-        # elif self.width-(self.chevronMargin[0]-self.touchMargin) >= coordinates[0]["y"] >= self.width-(self.chevronMargin[0]+self.chevronSize[0]+self.touchMargin) and self.chevronMargin[1]+self.chevronSize[1]+self.touchMargin >= coordinates[0]["x"] >= self.chevronMargin[0]-self.touchMargin:
-        #     self.handlePrevGame()
-        # elif 50 >= coordinates[0]["y"] and self.height >= coordinates[0]["x"] >= self.height-50:
-        #     self.killProgram()
     
     def handlePrevGame(self):
         if(self.gameNum != 0):
@@ -163,6 +214,7 @@ class GoalLightGUI:
 
     def killProgram(self):
         self.runLoop = False
+        self.display.clear()
         print("Closing Program")
 
     def startLoop(self):
