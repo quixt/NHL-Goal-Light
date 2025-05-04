@@ -121,7 +121,9 @@ class GoalLightGUI:
             homeScore = str(self.game["homeTeam"]["score"])
         backgroundTextDraw.text((self.sideMargin*2+self.logoSize[0], 120), awayScore, textColor, font=font)
         backgroundTextDraw.text((self.width-(self.sideMargin*2+self.logoSize[0])-self.phaseConstant, 120), homeScore, fill=textColor, font=font)
-
+        # Display the number of games
+        gameNumFont = ImageFont.truetype(f"./static/{self.font}.ttf",18)
+        backgroundTextDraw.text((230,260), f"{self.gameNum+1}/{len(self.allGames)}", fill = textColor, font=gameNumFont)
         periodFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
 
         for button in self.buttons:
@@ -214,7 +216,7 @@ class GoalLightGUI:
 
     def killProgram(self):
         self.runLoop = False
-        self.display.clear()
+        
         print("Closing Program")
 
     def startLoop(self):
