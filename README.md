@@ -11,6 +11,36 @@ The program uses the basic drivers provided by Waveshare.
 ## Materials
 - Waveshare 3.5" Capacitive Touch LCD with board
 - Raspberry Pi 4B
-- USB-C Breakout Board
-- Class D Amplifier Breakout Board
+- USB-C Power Dummy Board
+- MAX98357A Class D Amplifier Breakout Board
 - 5W 4Ohm Speaker
+## GPIO Pinouts
+### Capacitive Touch LCD
+| Device Pin | Raspberry Pi Pin |
+|------------|------------------|
+| 3.3V       | 3.3V             |
+| GND        | GND              |
+| MISO       | GPIO 9           |
+| MOSI       | GPIO 10          |
+| SCLK       | GPIO 11          |
+| LCD_CS     | GPIO 8           |
+| LCD_DC     | GPIO 25          |
+| LCD_RST    | GPIO 27          |
+| TP_SDA     | GPIO 2           |
+| TP_SCL     | GPIO 3           |
+| TP_INT     | GPIO 4           |
+| TP_RST     | GPIO 17          |
+Unused Pins: VCC, SD
+### MAX98357A Amplifier Board
+| Device Pin | Raspberry Pi Pin |
+|------------|------------------|
+| GND        | GND              |
+| DIN        | GPIO 21          |
+| BCLK       | GPIO 18          |
+| LRCLK      | GPIO 19          |
+Vin to USB-C Breakout Vout
+### USB-C Power Dummy:
+| Device Pin | Raspberry Pi Pin |
+|------------|------------------|
+| Vout       | 5V               |
+| GND        | GND              |
