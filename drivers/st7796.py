@@ -4,13 +4,15 @@ import logging
 import numpy as np
 from gpiozero import *
 
-
+print("Drivers running...")
 SPI_Freq = 40000000     # SPI 时钟频率
 SPI_Mode = 0            # 模式0
 BL_Freq  = 1000         # PWM 频率（背光）
 RST_PIN  = 27
 DC_PIN   = 25
-BL_PIN   = 18
+# DEFAULT IS 18.
+#BL_PIN   = 18
+BL_PIN   = 23
 
 
 

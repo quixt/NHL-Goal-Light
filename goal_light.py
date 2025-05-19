@@ -43,7 +43,7 @@ class GoalLightGUI:
     def __init__(self):
         # Used to get the date for the request
         # Deprecated for now
-        self.game={}
+        self.game=None
         self.gameNum = 0
         self.allGames = []
         self.buttons = []
@@ -87,62 +87,71 @@ class GoalLightGUI:
         self.display.clear()
         
     def drawScreen(self):
-        background = Image.new("RGB",(480,320), self.backgroundGreyCOLOR)
-        logoAway = Image.open(f"./logos/{self.game['awayTeam']['abbrev']}.png")
-        logoHome = Image.open(f"./logos/{self.game['homeTeam']['abbrev']}.png")
-        logoAwayAspectRatio = logoAway.height/logoAway.width
-        logoHomeAspectRatio = logoHome.height/logoHome.width
-        resizedLogoAway = logoAway.resize((self.logoSize[0],int(logoAwayAspectRatio*self.logoSize[0])))
-        resizedLogoHome = logoHome.resize((self.logoSize[0], int(logoHomeAspectRatio*self.logoSize[0])))
-        
-        # Paste Logos
-        # Schema: X: Distance from the left of screen
-        #         Y: Distance from top of screen
-        background.paste(resizedLogoAway, (self.sideMargin,int((self.height-resizedLogoAway.size[1])/2)), mask=resizedLogoAway)
-        background.paste(resizedLogoHome, (self.width-self.sideMargin-self.logoSize[0],int((self.height-resizedLogoHome.size[1])/2)), mask=resizedLogoHome)
-        
-        # Draw the score text
-        backgroundTextDraw = ImageDraw.Draw(background)
-        textColor = self.whiteCOLOR
-        font = ImageFont.truetype(f"./static/{self.font}.ttf", 48)
-        if self.game["gameState"] == "PRE" or self.game["gameState"] == "FUT":
-            awayScore = "-"
-            homeScore = "-"
-            startTimeUTC = str(self.game["startTimeUTC"])
-            startTimeUTC = startTimeUTC.replace("T"," ").replace("Z","")
-            utc = datetime.strptime(startTimeUTC, '%Y-%m-%d %H:%M:%S')
-            utc = utc.replace(tzinfo=timezone.utc)
-            newTime = utc_to_local(utc)
-            timeFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
-            backgroundTextDraw.text((20,20), clean_datetime_str(newTime.hour,newTime.minute), textColor, font=timeFont)
+        if self.game is not None:
+            background = Image.new("RGB",(480,320), self.backgroundGreyCOLOR)
+            logoAway = Image.open(f"./logos/{self.game['awayTeam']['abbrev']}.png")
+            logoHome = Image.open(f"./logos/{self.game['homeTeam']['abbrev']}.png")
+            logoAwayAspectRatio = logoAway.height/logoAway.width
+            logoHomeAspectRatio = logoHome.height/logoHome.width
+            resizedLogoAway = logoAway.resize((self.logoSize[0],int(logoAwayAspectRatio*self.logoSize[0])))
+            resizedLogoHome = logoHome.resize((self.logoSize[0], int(logoHomeAspectRatio*self.logoSize[0])))
+            
+            # Paste Logos
+            # Schema: X: Distance from the left of screen
+            #         Y: Distance from top of screen
+            background.paste(resizedLogoAway, (self.sideMargin,int((self.height-resizedLogoAway.size[1])/2)), mask=resizedLogoAway)
+            background.paste(resizedLogoHome, (self.width-self.sideMargin-self.logoSize[0],int((self.height-resizedLogoHome.size[1])/2)), mask=resizedLogoHome)
+            
+            # Draw the score text
+            backgroundTextDraw = ImageDraw.Draw(background)
+            textColor = self.whiteCOLOR
+            font = ImageFont.truetype(f"./static/{self.font}.ttf", 48)
+            if self.game["gameState"] == "PRE" or self.game["gameState"] == "FUT":
+                awayScore = "-"
+                homeScore = "-"
+                startTimeUTC = str(self.game["startTimeUTC"])
+                startTimeUTC = startTimeUTC.replace("T"," ").replace("Z","")
+                utc = datetime.strptime(startTimeUTC, '%Y-%m-%d %H:%M:%S')
+                utc = utc.replace(tzinfo=timezone.utc)
+                newTime = utc_to_local(utc)
+                timeFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
+                backgroundTextDraw.text((20,20), clean_datetime_str(newTime.hour,newTime.minute), textColor, font=timeFont)
 
+            else:
+                awayScore = str(self.game["awayTeam"]["score"])
+                homeScore = str(self.game["homeTeam"]["score"])
+            backgroundTextDraw.text((self.sideMargin*2+self.logoSize[0], 120), awayScore, textColor, font=font)
+            backgroundTextDraw.text((self.width-(self.sideMargin*2+self.logoSize[0])-self.phaseConstant, 120), homeScore, fill=textColor, font=font)
+            # Display the number of games
+            gameNumFont = ImageFont.truetype(f"./static/{self.font}.ttf",18)
+            backgroundTextDraw.text((230,260), f"{self.gameNum+1}/{len(self.allGames)}", fill = textColor, font=gameNumFont)
+            periodFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
+
+            for button in self.buttons:
+                background = button[0].drawButton(background)
+            if self.game["gameState"] == "OFF" or self.game["gameState"] == "FINAL":
+                backgroundTextDraw.text((20,20),f"FINAL: {self.game['gameOutcome']['lastPeriodType']}",textColor, font=periodFont)
+            elif "period" in self.game:
+                if self.game["clock"]["inIntermission"]:
+                    backgroundTextDraw.text((20,20),f"Intermission {str(self.game['period'])}",textColor, font=periodFont)
+                elif self.game["periodDescriptor"]["periodType"] == "REG":
+                    backgroundTextDraw.text((20,20),f"Period {str(self.game['periodDescriptor']['number'])}",textColor, font=periodFont)
+                elif self.game["periodDescriptor"]["periodType"] == "OT":
+                    backgroundTextDraw.text((20,20),f"Overtime {str(self.game['periodDescriptor']['otPeriods'])}",textColor, font=periodFont)
+            # Screen display is flipped-image must be flipped horizontally to display correctly
+            flippedBackground = background.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+            # Switch display
+            self.display.show_image(flippedBackground)
         else:
-            awayScore = str(self.game["awayTeam"]["score"])
-            homeScore = str(self.game["homeTeam"]["score"])
-        backgroundTextDraw.text((self.sideMargin*2+self.logoSize[0], 120), awayScore, textColor, font=font)
-        backgroundTextDraw.text((self.width-(self.sideMargin*2+self.logoSize[0])-self.phaseConstant, 120), homeScore, fill=textColor, font=font)
-        # Display the number of games
-        gameNumFont = ImageFont.truetype(f"./static/{self.font}.ttf",18)
-        backgroundTextDraw.text((230,260), f"{self.gameNum+1}/{len(self.allGames)}", fill = textColor, font=gameNumFont)
-        periodFont = ImageFont.truetype(f"./static/{self.font}.ttf", 18)
+            background = Image.new("RGB",(480,320), self.backgroundGreyCOLOR)
+            backgroundTextDraw = ImageDraw.Draw(background)
+            textColor = self.whiteCOLOR
+            font = ImageFont.truetype(f"./static/{self.font}.ttf", 48)
+            backgroundTextDraw.text((80,110), "No games today", textColor, font=font)
+            flippedBackground = background.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            self.display.show_image(flippedBackground)
 
-        for button in self.buttons:
-            background = button[0].drawButton(background)
-        if self.game["gameState"] == "OFF" or self.game["gameState"] == "FINAL":
-            backgroundTextDraw.text((20,20),f"FINAL: {self.game['gameOutcome']['lastPeriodType']}",textColor, font=periodFont)
-        elif "period" in self.game:
-            if self.game["clock"]["inIntermission"]:
-                backgroundTextDraw.text((20,20),f"Intermission {str(self.game['period'])}",textColor, font=periodFont)
-            elif self.game["periodDescriptor"]["periodType"] == "REG":
-                backgroundTextDraw.text((20,20),f"Period {str(self.game['periodDescriptor']['number'])}",textColor, font=periodFont)
-            elif self.game["periodDescriptor"]["periodType"] == "OT":
-                backgroundTextDraw.text((20,20),f"Overtime {str(self.game['periodDescriptor']['otPeriods'])}",textColor, font=periodFont)
-        # Screen display is flipped-image must be flipped horizontally to display correctly
-        flippedBackground = background.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-
-        # Switch display
-        self.display.show_image(flippedBackground)
-        
     def registerButton(self, button, callback):
         self.buttons.append([button, callback])
     
@@ -152,10 +161,15 @@ class GoalLightGUI:
         gamesJson = gamesNow.json()
         self.allGames = gamesJson["games"]
         # Checks if no game has been loaded
-        if len(list(self.game.keys())) != 0:
+        if len(list(self.game.keys())) != 0 and len(self.allGames) > 0:
             self.evalChange(self.allGames[self.gameNum])
-        else:
+        elif len(self.allGames) > 0:
             self.game = self.allGames[self.gameNum]
+        else:
+            if self.game is not None:
+                self.game = None
+                self.drawScreen()
+            
     
     def setGame(self, number=None):
         if number == None:
@@ -166,6 +180,8 @@ class GoalLightGUI:
         if newGameData["gameState"] != self.game["gameState"]:
             return True
         elif "period" in newGameData and not "period" in newGameData:
+            return True
+        elif newGameData["currentDate"] != self.game["currentDate"]:
             return True
         elif "period" in newGameData:
             if newGameData["period"] != self.game["period"] or newGameData["clock"]["inIntermission"] != self.game["clock"]["inIntermission"]:
