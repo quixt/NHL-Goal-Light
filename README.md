@@ -1,5 +1,5 @@
 # NHL-Goal-Light
-This is a light that flashes and plays a goal horn and song when a hockey team scores.  The score is displayed on a small touchscreen.\n
+This is a light that flashes and plays a goal horn and song when a hockey team scores.  The score is displayed on a small touchscreen.<br>
 The CAD can be found [here](https://cad.onshape.com/documents/c55c02e04e703cfe27a60e14/w/b4b5bbc7188e16cf4a296082/e/4daa85a60760a7a30a035af4?renderMode=0&uiState=682fcc6b14300841d701ed5a).
 
 ## How It Works
