@@ -12,7 +12,7 @@ This is all run in a synchronous loop, handling both display and touch capabilit
 The program uses the basic drivers provided by Waveshare.
 ## Materials
 - Waveshare 3.5" Capacitive Touch LCD with board
-- Raspberry Pi 4B
+- Raspberry Pi Zero
 - USB-C Power Dummy Board
 - MAX98357A Class D Amplifier Breakout Board
 - 5W 4Ohm Speaker
