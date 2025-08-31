@@ -28,6 +28,7 @@ The program uses the basic drivers provided by Waveshare.
 | LCD_CS     | GPIO 8           |
 | LCD_DC     | GPIO 25          |
 | LCD_RST    | GPIO 27          |
+| LCD_BL     | GPIO 23          |
 | TP_SDA     | GPIO 2           |
 | TP_SCL     | GPIO 3           |
 | TP_INT     | GPIO 4           |
