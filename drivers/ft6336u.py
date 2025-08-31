@@ -3,12 +3,13 @@ import smbus
 from gpiozero import *
 import RPi.GPIO   
 
-
+print("Touch drivers running...")
 FT6336U_ADDRESS = 0x38
 
 FT6336U_LCD_TOUCH_MAX_POINTS = 2
-
-TP_INT   = 4
+#DEFAULT IS 4
+# TP_INT   = 4
+TP_INT   = 22
 TP_RST   = 17
 
     

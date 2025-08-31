@@ -5,6 +5,7 @@ from PIL import Image,ImageDraw,ImageFont
 import requests
 from subprocess import call
 from datetime import datetime, timezone
+import music_player
 
 welcome = """
 ****************************************
@@ -25,7 +26,7 @@ def utc_to_local(utc:datetime):
     local_time = utc.astimezone()
     return local_time
 
-def clean_datetime_str(hour, minute):
+def clean_datetime_str(hour:int, minute:int):
     if hour > 12:
         hour-=12
         pmAm = "PM"
@@ -43,7 +44,8 @@ class GoalLightGUI:
     def __init__(self):
         # Used to get the date for the request
         # Deprecated for now
-        self.game=None
+        self.player = music_player.MusicPlayer("static")
+        self.game = None
         self.gameNum = 0
         self.allGames = []
         self.buttons = []
@@ -148,7 +150,9 @@ class GoalLightGUI:
             backgroundTextDraw = ImageDraw.Draw(background)
             textColor = self.whiteCOLOR
             font = ImageFont.truetype(f"./static/{self.font}.ttf", 48)
-            backgroundTextDraw.text((80,110), "No games today", textColor, font=font)
+            backgroundTextDraw.text((80,70), "No games today", textColor, font=font)
+            for button in self.buttons:
+                background = button[0].drawButton(background)
             flippedBackground = background.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             self.display.show_image(flippedBackground)
 
@@ -161,16 +165,14 @@ class GoalLightGUI:
         gamesJson = gamesNow.json()
         self.allGames = gamesJson["games"]
         # Checks if no game has been loaded
-        if len(list(self.game.keys())) != 0 and len(self.allGames) > 0:
-            self.evalChange(self.allGames[self.gameNum])
-        elif len(self.allGames) > 0:
-            self.game = self.allGames[self.gameNum]
-        else:
-            if self.game is not None:
+        if self.game is not None:
+            if len(self.allGames) > 0:
+                self.evalChange(self.allGames[self.gameNum])
+            else:
                 self.game = None
-                self.drawScreen()
-            
-    
+        elif len(self.allGames) > 0:
+            self.setGame()
+         
     def setGame(self, number=None):
         if number == None:
             self.game = self.allGames[self.gameNum]
@@ -181,8 +183,6 @@ class GoalLightGUI:
             return True
         elif "period" in newGameData and not "period" in newGameData:
             return True
-        elif newGameData["currentDate"] != self.game["currentDate"]:
-            return True
         elif "period" in newGameData:
             if newGameData["period"] != self.game["period"] or newGameData["clock"]["inIntermission"] != self.game["clock"]["inIntermission"]:
                 return True
@@ -190,26 +190,34 @@ class GoalLightGUI:
                 return False
         else:
             return False
-
     
-    def evalChange(self, newGameData):
+    def evalChange(self, newGameData:dict):
         if self.game["gameState"] != "PRE" and self.game["gameState"] != "FUT":
             oldAwayScore = self.game["awayTeam"]["score"]
             oldHomeScore = self.game["homeTeam"]["score"]
             newAwayScore = newGameData["awayTeam"]["score"]
             newHomeScore = newGameData["homeTeam"]["score"]
             # If the score is different, update the game data and redraw the screen
-            if newAwayScore != oldAwayScore or newHomeScore != oldHomeScore or self.stateChanged(newGameData):
+            if newAwayScore != oldAwayScore or newHomeScore != oldHomeScore:
                 self.game = newGameData
-                print("State Updated (Goal or game state change)")
+                print("State Updated (Goal)")
                 self.drawScreen()
+                # Play horn
+                self.player.play_horn("SEA")
+                self.player.play_horn("SEAGoal")
+                
+
+            elif self.stateChanged(newGameData):
+                self.game = newGameData
+                print("State Updated (Game State Changed)")
+                self.drawScreen()
+           
         elif self.stateChanged(newGameData):
             self.game = newGameData
-            print("Game State Changed")
+            print("State Updated (Game State Changed)")
             self.drawScreen()
-            
-            
-    def handleTouch(self, coordinates):
+                       
+    def handleTouch(self, coordinates:tuple):
         # The "y" measures from the right of the screen to the left
         # The "x" measures from the bottom of the screen to the top
         xCoord = coordinates[0]["y"]
