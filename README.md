@@ -31,7 +31,7 @@ The program uses the basic drivers provided by Waveshare.
 | LCD_BL     | GPIO 23          |
 | TP_SDA     | GPIO 2           |
 | TP_SCL     | GPIO 3           |
-| TP_INT     | GPIO 4           |
+| TP_INT     | GPIO 22           |
 | TP_RST     | GPIO 17          |
 Unused Pins: VCC, SD
 ### MAX98357A Amplifier Board
